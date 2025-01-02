@@ -1,0 +1,29 @@
+
+
+
+# archived functions
+def accel_radius_erosion_model(t, hyperparams, grid_geometry, grid_mats, model_inputs, a=0.563, b=0.395):
+    # for n0 = 1e18: a = 0.113, b = 0.395
+    # for n0 = 1e19: a = 0.563, b = 0.395
+    # for n0 = 1e18 & CF: a = 0.673, b = 0.395
+    j_bar, y                    = hyperparams
+    rs, ra, lg, s               = grid_geometry
+    M_grid, rho_grid            = grid_mats
+    n0, Ec, E_cex, Vd, Va, M     = model_inputs
+    
+    dPdt             = dfdt(t, a, b)
+    jCL              = j_CL(M, Vd-Va, lg)
+    sigma_p          = xe_xsections(Ec, "+")*(1e-20) # m^2
+    sigma_pp         = xe_xsections(Ec, "++")*(1e-20) # m^2
+    rb               = ra * beam_area_model(j_bar)**(1/2)
+    nominal_beam_vol = beam_volume_trap(lg, rs, rb)
+    Vbeam            = nominal_beam_vol
+    Gamma_CEX        = dPdt * cex_flux(jCL*j_bar, n0, sigma_p, Vbeam) # Gamma^C_CEX 
+    Y_p              = ey.calculate_yield_Xe_Mo(E_cex)
+    Y_pp             = ey.calculate_yield_Xe_Mo(2*E_cex)
+    sputter_flux     = cex_erosion_flux(Gamma_CEX, y, Y_p, Y_pp, sigma_p, sigma_pp)
+    dra_dt           = sputter_flux * M_grid / (N_A * rho_grid)
+    dra_dt           = dra_dt*(10**3)*(60)*(60)*(1000) # mm / khr
+    r_erode          = t*dra_dt + ra
+
+    return r_erode
