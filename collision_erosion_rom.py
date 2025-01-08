@@ -17,81 +17,57 @@ import wgw_model as ebs
 import pandas as pd
 from time import perf_counter
 
-# Useful Functions 
+# Conversions
 def AMU2kg(AMU):
     M = (1e-3)*AMU / N_A
     return M
 
-## Carbon Backsputtering Functions
+# Beam and Plume Volume Functions Carbon Backsputtering Functions
 def plume_volume(Rth, n_ds = 10, div = 20):
     div_rad = div * np.pi / 180
     #print(div_rad)
     return ( (np.pi) * Rth**3 ) * ( ( n_ds**3 / 3) * np.tan( div_rad )**2 + ( n_ds**2 ) * np.tan( div_rad ) + n_ds )
 
+def beam_volume_trap(h, r1, r2):
+    ''' Calculates the beam volume between the screen and accel grid using 
+        approximating the beam as a truncated trapezoid.
+
+        returns 
+        beam volume, assuming units of all parameters is the same    
+    '''
+    return ( pi * h / 3 ) * (r2**2 + r1*r2 + r1**2)
+
+# Carbon redeposition 
 def redep_flux_Xe_C(Ib, Rth, E):
     Y   = ey.calculate_yield(E, 6, 54, 12.011, 131.29, [4, 0.8, 1.8, 21])
     Ath = np.pi * Rth**2
     carbon_flux = Y*Ib / (Ath * q)
     return carbon_flux
 
-def sputterant_thickness_rate(IB, Rch, Ns, Ni, Ms, Mi, rho_s, E, params = [4, 0.8, 1.8, 21], sc=1):
-    Y = 0.5
-    Y = ey.calculate_yield(E, Ns, Ni, Ms, Mi, params)
-    Ach = np.pi * Rch*Rch
-    return sc*(Y*IB/(q * Ach)) * Ms / (N_A * rho_s)
-
 def sputterant_redep_rate(IB, Rch, Rth, Ns, Ni, Ms, Mi, rho_s, E, params = [4, 0.8, 1.8, 21], sc=1):
+    ''' Returns the rate that carbon sputterants deposit back on the thruster '''
     Y = ey.calculate_yield(E, Ns, Ni, Ms, Mi, params)
     Ath = np.pi * Rth * Rth
     Ach = np.pi * Rch * Rch
     s_avg = (Y * IB / q) * (Ath / Ach)
     return s_avg
 
-def cex_generation_rate(IB, Rth, n0_fac, sigma_p):
-    Vbeam = plume_volume(Rth)
-    return IB * n0_fac * sigma_p * Vbeam
 
-def carbon_surface_coverage(GammaC, ja, Y_C_Mo=0.99):
-    thetac = q*GammaC / (ja * Y_C_Mo)
-    return thetac
+def cex_generation_rate(j, n0, single_xsection, volume):
+    ''' Returns cex ions generated per second (ions/s) '''
+    return (j/q) * n0 * single_xsection * volume
 
-def carbon_surface_coverageV2(sdot, Icex, Y=0.99):
+def cex_flux(j, n0, single_xsection, volume):
+    ''' Returns the flux of CEX ions generated (ions / m2 s)'''
+    return (j/q) * n0 * single_xsection * volume
+
+def carbon_surface_coverage(sdot, Icex, Y=0.99):
     ''' Calculates carbon surface coverage '''
     Y_C_Mo = Y
     thetaC = sdot / (Icex * Y_C_Mo)
     return thetaC
 
-def accel_thickness_erosion_model(dt, hyperparams, grid_geometry, grid_mats, model_inputs):
-    # In work
-    j_bar, y                    = hyperparams
-    Rth, rs, ts, ra, ta, lg, s  = grid_geometry
-    M_grid, rho_grid            = grid_mats
-    n0, Ec, E_cex, Vd, Va, M    = model_inputs
-    
-    # Same as accel_radius_erosion_model()
-    jCL              = j_CL(M, Vd-Va, lg*(1e-3))        # A m-2
-    sigma_p          = xe_xsections(Ec, "+")*(1e-20)    # m2
-    sigma_pp         = xe_xsections(Ec, "++")*(1e-20)   # m2
-
-    # updated for accel grid thickness
-    Vbeam            = plume_volume(Rth, n_ds=10, div = 20)  # m2
-    IB               = jCL * j_bar * (pi * Rth**2)           # A
-    carbon_red_flux  = redep_flux_Xe_C(1.76, Rth, np.abs(Vd))      # = 7.57 atoms / s m2
-    
-    #ja = 6.78e-3 / (pi * Rth**2)
-    Gamma_CEX        = cex_flux(1.76 / (pi*Rth**2), n0, sigma_p, Vbeam) # Gamma^C_CEX 
-    theta_C          = carbon_surface_coverage(carbon_red_flux, ja=q*Gamma_CEX) #  using 6.78e-3A from Souas 2013 as a placeholder
-    
-    # Similar to accel_radius_erosion_model() with the addition of theta_C in sputter_flux
-    Y_p              = ey.calculate_yield_Xe_Mo(E_cex)
-    Y_pp             = ey.calculate_yield_Xe_Mo(2*E_cex)
-    sputter_flux     = cex_erosion_flux(Gamma_CEX, y, Y_p, Y_pp, sigma_p, sigma_pp)#, theta_C)
-    dta_dt_0         = sputter_flux * M_grid / (N_A * rho_grid)
-    dta_dt           = dta_dt_0*(60)*(60)*(1000) # m / khr
-    t_erode          = ta - dt* (dta_dt)
-    return t_erode
-
-def accel_thickness_erosion_modelV2(dt,  hyperparams, thruster, grids, discharge_chamber, facility, operating_conditions):
+def accel_thickness_erosion_model(dt,  hyperparams, thruster, grids, discharge_chamber, facility, operating_conditions):
     ''' Calculates rate of carbon backsputter to the thruster
 
         arguments (units)
@@ -109,7 +85,7 @@ def accel_thickness_erosion_modelV2(dt,  hyperparams, thruster, grids, discharge
 
     # Pull arguments 
     j_bar, Ibar, y, eta_cex, n_ds, _        = hyperparams
-    Rth, div                                = thruster
+    Rth, diverg                             = thruster
     rs, ts, ra, ta, lg, s, M_grid, rho_grid = grids
     ni_dis, n0_dis, Te_dis                  = discharge_chamber
     n0_fac, Rch, Lch, Ns, Ms, rho_C         = facility
@@ -117,6 +93,9 @@ def accel_thickness_erosion_modelV2(dt,  hyperparams, thruster, grids, discharge
     
     # conversions where necessary
     rho_grid_m = rho_grid * (1e9) # g/mm3 -> g/m3
+    Ath  = np.pi * Rth**2
+    javg = IB / Ath
+    
 
     # Same as accel_radius_erosion_model()
     sigma_p          = xe_xsections(Ec, "+")*(1e-20)    # m2
@@ -124,14 +103,19 @@ def accel_thickness_erosion_modelV2(dt,  hyperparams, thruster, grids, discharge
 
     # updated for accel grid thickness ---
     
-    Vbeam            = plume_volume(Rth, n_ds=10, div = 20)  # m2  
-    s_avg            = sputterant_redep_rate(IB, Rch, Rth, Ns, 54, Ms, 131.27, rho_C, Vd)
-    I_CEX            = cex_generation_rate(IB, Rth, n0_fac, sigma_p)
-    theta_C          = carbon_surface_coverageV2(s_avg, eta_cex*I_CEX/q) 
-    Y_p              = ey.calculate_yield_Xe_Mo(abs(Va))          # -> atoms/ion; produces reasonable results
-    Y_pp             = ey.calculate_yield_Xe_Mo(2*abs(Va))        # -> atoms/ion; produces reasonable results
-    sputter_flux     = cex_erosion_flux(eta_cex*I_CEX/q, y, Y_p, Y_pp, sigma_p, sigma_pp, carbon_surface_coverage=theta_C) # atoms/s
-    dta_dt           = sputter_flux * M_grid / (N_A * rho_grid_m) # this is wrong!!!
+    Vplume           = plume_volume(Rth, n_ds=n_ds, div = diverg)                       # plume volume, m3  
+    s_avg            = sputterant_redep_rate(IB, Rch, Rth, Ns, Ni, Ms, Mi, rho_C, Vd)   # redeposition rate of facility sputterants -> atoms/s
+    r_CEX            = eta_cex*cex_generation_rate(javg, n0_fac, sigma_p, Vplume)       # rate of cex ions being generated -> ions/s
+    G_CEX            = eta_cex*cex_generation_rate(javg, n0_fac, sigma_p, Vplume)
+    theta_C          = carbon_surface_coverage(s_avg, r_CEX) 
+    Y_p              = ey.calculate_yield_Xe_Mo(abs(Va))                                # -> atoms/ion; produces reasonable results
+    Y_pp             = ey.calculate_yield_Xe_Mo(2*abs(Va))                              # -> atoms/ion; produces reasonable results
+    sputter_flux     = cex_erosion_flux(G_CEX, y, Y_p, Y_pp, 
+                                        sigma_p, sigma_pp, 
+                                        carbon_surface_coverage=theta_C)                # atoms/s
+
+    # This equation needs sputter flux to actually be a flux...
+    dta_dt           = sputter_flux * M_grid / (N_A * rho_grid_m) 
     dta_dt           = dta_dt*1000*(60)*(60)*(1000) # mm / khr
     t_erode          = ta - dt * dta_dt 
     return t_erode
@@ -143,15 +127,6 @@ def grab_data():
     return xdata, ydata
 
 ## Functions
-def beam_volume_trap(h, r1, r2):
-    ''' Calculates the beam volume between the screen and accel grid using 
-        approximating the beam as a truncated trapezoid.
-
-        returns 
-        beam volume, assuming units of all parameters is the same    
-    '''
-    return ( pi * h / 3 ) * (r2**2 + r1*r2 + r1**2)
-
 def erosion_rate(flux, sputter_yield, target_atomic_weight, target_density):
     return flux * sputter_yield * (target_atomic_weight / (target_density * N_A))
 
@@ -190,18 +165,9 @@ def xe_xsections(E, charge = "+", uncertain=False):
     #    return A - B * ulog10(E)
     return A-B*np.log10(E)
 
-def bohm_velocity(Te, m):
-    return np.sqrt(kB*Te / m)
-
 def bohm_current_density(n0, Te_eV, M):
     Te = Te_eV * q
     return 0.606 * n0 * q * (Te/M)**0.5
-
-def discharge_density(Ib, A, Te, m):
-    ''' Calculates the discharge density assuming beam current, Ib ~2IBohm 
-    currently not used
-    '''
-    return ( Ib / (q*A)) * np.sqrt(m / (kB*Te))
 
 def j_CL(M , V, d):
     ''' Calculates the Child-Langmuir current density
@@ -250,7 +216,7 @@ def accel_grid_erosion_func(t, a, b):
     rb               = ra * beam_area_model(j_bar)**(1/2)
     nominal_beam_vol = beam_volume_trap(lg, rs, rb)
     Vbeam            = nominal_beam_vol
-    Gamma_CEX        = dPdt*cex_flux(jCL*j_bar, n0_sa, sigma_p, Vbeam) # Gamma^C_CEX 
+    Gamma_CEX        = dPdt*cex_generation_rate(jCL*j_bar, n0_sa, sigma_p, Vbeam) # Gamma^C_CEX 
     Y_p              = ey.calculate_yield_Xe_Mo(E_cex)
     Y_pp             = ey.calculate_yield_Xe_Mo(2*E_cex)
     sputter_flux     = cex_erosion_flux(Gamma_CEX, double_ion_ratio, Y_p, Y_pp, sigma_p, sigma_pp)
@@ -321,7 +287,7 @@ def accel_grid_erosion_funcV2(t, a, b):
     rb               = ra * beam_area_model(j_bar)**(1/2)
     nominal_beam_vol = beam_volume_trap(lg, rs, rb)
     Vbeam            = nominal_beam_vol
-    Gamma_CEX        = dPdt*cex_flux(jCL*j_bar, n0, sigma_p, Vbeam) # Gamma^C_CEX 
+    Gamma_CEX        = dPdt*cex_generation_rate(jCL*j_bar, n0, sigma_p, Vbeam) # Gamma^C_CEX 
     Y_p              = ey.calculate_yield_Xe_Mo(E_cex)
     Y_pp             = ey.calculate_yield_Xe_Mo(2*E_cex)
     sputter_flux     = cex_erosion_flux(Gamma_CEX, y, Y_p, Y_pp, sigma_p, sigma_pp)
@@ -358,7 +324,7 @@ def screen_thickness_erosion(dt, hyperparams, thruster, grids, discharge_chamber
     ts_erode     = ts - dt * dts_dt 
     return ts_erode
 
-def accel_radius_erosion_modelV2(dt, hyperparams, thruster, grids, discharge_chamber, facility, operating_conditions):
+def accel_radius_erosion_model(dt, hyperparams, thruster, grids, discharge_chamber, facility, operating_conditions):
     # Pull arguments
     j_bar, Ibar, y, eta_cex, n_ds, phi_p    = hyperparams
     Rth, div                                = thruster
@@ -385,7 +351,7 @@ def accel_radius_erosion_modelV2(dt, hyperparams, thruster, grids, discharge_cha
     sigma_pp         = xe_xsections(Ec, "++")*(1e-20)           # -> m2
     rb               = ra * beam_area_model(j_bar)**(1/2)       # -> mm
     Vbeam            = beam_volume_trap(lg, rs, rb)             # -> mm3
-    Gamma_CEX        = cex_flux(jb, n0_mm3, sigma_p, Vbeam)     # -> ions/s, Gamma^C_CEX 
+    Gamma_CEX        = cex_generation_rate(jb, n0_mm3, sigma_p, Vbeam)     # -> ions/s, Gamma^C_CEX 
     Y_p              = ey.calculate_yield_Xe_Mo(E_cex)          # -> atoms/ion; produces reasonable results
     Y_pp             = ey.calculate_yield_Xe_Mo(2*E_cex)        # -> atoms/ion; produces reasonable results
     sputter_flux     = cex_erosion_flux(Gamma_CEX, y, Y_p, Y_pp, sigma_p, sigma_pp) # atoms/s
@@ -401,9 +367,9 @@ def simple_erosion_model():
     # hyperparameters ---------------------------------------
     j_bar    = 0.25     # normalized beamlet current
     I_bar    = 1.8      # beamlet-bohm current ratio
-    eta_cex  = 0.01     # cex ion impingement probability
+    eta_cex  = 0.001    # cex ion impingement probability
     n_ds     = 10       # thruster radius's downstream 
-    Rebs     = 0.01     # electron backstreaming ratio limit
+    Rebs     = 0.001   # electron backstreaming ratio limit
     # thruster ----------------------------------------------
     lg       = 0.36     # grid separation, mm
     rs       = (1.91)/2 # screen grid radius, mm
@@ -431,7 +397,7 @@ def simple_erosion_model():
     Va       = -180     # Accel potential below cathode, V
     phi_dis  = 25       # Discharge plasma potential over screen grid, V (unused)
     Ni       = 54       # propellant atomic number
-    Mi       = 131      # propellant atomic mass, AMU
+    Mi       = 131.27   # propellant atomic mass, AMU
     Ec       = 400      # Energy at collision, +\-200V
     E_cex    = 400      # Energy of CEX ions colliding with grid, +\-200V
     
@@ -450,21 +416,26 @@ def simple_erosion_model():
     n0_arr = np.zeros(len(tsteps))
     Te_arr = np.zeros(len(tsteps))
     ni_arr = np.zeros(len(tsteps))
+    # Population results at t=0
     ra_t[0] = ra0
     ta_t[0] = ta0
     ts_t[0] = ts0
+    rb0 = 0.9*ra0
+    Vebs_t[0] = ebs.electron_backstreaming(phi_p, phi_dis, Va, Ib, Te_beam, 
+                                                 rs*(1e-3), ra0*(1e-3), 
+                                                 ts0*(1e-3), ta0*(1e-3), lg*(1e-3), 
+                                                 rb0*(1e-3), Mi, ebs_ratio = Rebs)
+    CF = simpleClausingFactor(ra=ra0, s=s)
+    # Update discharge chamber plasma parameters
+    ni_thstr, n0_thstr, y, Te_thstr = calculate_parameters_from_clausing(CF)
+    y_arr[0]  = y
+    n0_arr[0] = n0_thstr
+    Te_arr[0] = Te_thstr
+    ni_arr[0] = ni_thstr
     i = 1
     start_time = perf_counter()
-    for t in tsteps[:-1]:
-        # Calculate Clausing Factor with updated accel grid radius
-        CF = simpleClausingFactor(ra=ra_t[i-1], s=s)
-        # Update discharge chamber plasma parameters
-        ni_thstr, n0_thstr, y, Te_thstr = calculate_parameters_from_clausing(CF)
-        y_arr[i-1]  = y
-        n0_arr[i-1] = n0_thstr
-        Te_arr[i-1] = Te_thstr
-        ni_arr[i-1] = ni_thstr
-        # Fill new model inputs 
+    for t in tsteps[1:]:
+        # Fill model inputs 
         hyper = (j_bar, I_bar, y, eta_cex, n_ds, phi_dis)
         thstr = (Rth,  diverg)
         grids = (rs, ts_t[i-1], ra_t[i-1], ta_t[i-1], lg, s, M_grid, rho_grid)
@@ -473,70 +444,85 @@ def simple_erosion_model():
         opcon = (IB, Ib, Ec, E_cex, Vd, Va, Ni, Mi)
         # Electron Backstreaming 
         I_avg = IB * ( np.pi * (rs/1000)**2) / (np.pi * Rth**2)
-        rb = 0.6*ra_t[i-1]
-        Vebs_t[i-1] = ebs.electron_backstreaming(phi_p, phi_dis, Va, I_avg, Te_beam, 
-                                                 rs*(1e-3), ra_t[i-1]*(1e-3), 
-                                                 ts_t[i-1]*(1e-3), ta_t[i-1]*(1e-3), lg*(1e-3), 
-                                                 rb*(1e-3), Mi, ebs_ratio = 0.001)
+        #rb = ra_t[i-1]*(beam_area_model(j_bar=j_bar)**(1/2))
+        rb = 0.9*ra_t[i-1]
+        Vebs_t[i] = ebs.electron_backstreaming(phi_p, phi_dis, Va, Ib, Te_beam, 
+                                               rs*(1e-3), ra_t[i-1]*(1e-3), 
+                                               ts_t[i-1]*(1e-3), ta_t[i-1]*(1e-3), lg*(1e-3), 
+                                               rb*(1e-3), Mi, ebs_ratio = Rebs)
 
         # Calculate new accel grid radius 
-        ra_t[i] = accel_radius_erosion_modelV2(dt, hyper, thstr, grids, disch, fclty, opcon) 
-        ta_t[i] = accel_thickness_erosion_modelV2(dt, hyper, thstr, grids, disch, fclty, opcon)
+        ra_t[i] = accel_radius_erosion_model(dt, hyper, thstr, grids, disch, fclty, opcon) 
+        ta_t[i] = accel_thickness_erosion_model(dt, hyper, thstr, grids, disch, fclty, opcon)
         ts_t[i] = screen_thickness_erosion(dt, hyper, thstr, grids, disch, fclty, opcon)
+        # Calculate new Clausing Factor with updated accel grid radius
+        CF = simpleClausingFactor(ra=ra_t[i-1], s=s)
+        # Update discharge chamber plasma parameters
+        ni_thstr, n0_thstr, y, Te_thstr = calculate_parameters_from_clausing(CF)
+        y_arr[i]  = y
+        n0_arr[i] = n0_thstr
+        Te_arr[i] = Te_thstr
+        ni_arr[i] = ni_thstr
         i+=1
-    
-    print(i)
-    print(f"Time: {perf_counter() - start_time: 0.5f} s")
+
+    # Show results
+    print(f"Runtime: {perf_counter() - start_time: 0.5f} s")
     fig, axs = plt.subplots(2, 1, sharex=True, figsize=(12,8))
     ax = axs[0]
-    ax.plot(tsteps, ra_t, 'r', label = "Clausing Factor Modified Params")
+    ax.plot(tsteps, ra_t, 'k-', label=r'r_a')
     #ax.plot(xdata, ydata, 'k*', label = 'ELT Data')
-    ax.set_xlabel(r'$Time [khr]$', fontsize=18)
-    ax.set_ylabel(r'$r_a [mm]$', fontsize=18)
+    ax.set_ylabel(r'$[mm]$', fontsize=18)
     ax.grid(which='both')
     ax.legend()
     ax = axs[1]
-    ax.plot(tsteps, ta_t, 'r', label = "Accel grid thickness")
-    ax.plot(tsteps, ts_t, 'b', label = "Screen grid thickness")
+    ax.plot(tsteps, ta_t, 'k-', label = r"$t_a$")
+    ax.plot(tsteps, ts_t, 'k--', label = r"$t_s$")
+    ax.set_title('Grid thickness')
     ax.set_xlabel(r'$Time [khr]$', fontsize=18)
-    ax.set_ylabel(r'$Thickness [mm]$', fontsize=18)
+    ax.set_ylabel(r'$[mm]$', fontsize=18)
     ax.grid(which='both')
     ax.legend()
 
     # Plot discharge parameters
-    until = -1
+    until = 0
+    fs = 12
+    use_color = 'k'
+    xlabel = r'Time [$khr$]'
     fig, axs = plt.subplots(2, 2, sharex=True, figsize=(12,8))
     ax = axs[0][0]
-    ax.plot(tsteps[:until], y_arr[:until], 'r', label = "Clausing Factor Modified Params")
-    ax.set_xlabel(r'$t [khr]$', fontsize=18)
-    ax.set_ylabel(r'$\gamma$', fontsize=18)
+    ax.plot(tsteps, y_arr, color=use_color)
+    ax.set_title(r'Double-single ion ratio ($\gamma$)')
+    #ax.set_xlabel(xlabel, fontsize=fs)
+    ax.set_ylabel('', fontsize=fs)
     ax.grid(which='both')
-    ax.legend()
+
     ax = axs[0][1]
-    ax.plot(tsteps[:until], n0_arr[:until], 'r', label = "Clausing Factor Modified Params")
-    ax.set_xlabel(r'$t [khr]$', fontsize=18)
-    ax.set_ylabel(r'$n_0[m^{-3}]$', fontsize=18)
+    ax.plot(tsteps, n0_arr, color=use_color)
+    ax.set_title(r'Neutral density ($n_0$)')
+    #ax.set_xlabel(xlabel, fontsize=fs)
+    ax.set_ylabel(r'$m^{-3}$', fontsize=fs)
     ax.grid(which='both')
-    ax.legend()
+
     ax = axs[1][0]
-    ax.plot(tsteps[:until], Te_arr[:until], 'r', label = "Clausing Factor Modified Params")
-    ax.set_xlabel(r'$t [khr]$', fontsize=18)
-    ax.set_ylabel(r'$T_e[eV]$', fontsize=18)
+    ax.plot(tsteps, Te_arr, color=use_color)
+    ax.set_title(r'Electron temperature ($T_e$)')
+    ax.set_xlabel(xlabel, fontsize=fs)
+    ax.set_ylabel(r'$eV$', fontsize=fs)
     ax.grid(which='both')
-    ax.legend()
+ 
     ax = axs[1][1]
-    ax.plot(tsteps[:until], ni_arr[:until], 'r', label = "Clausing Factor Modified Params")
-    ax.set_xlabel(r'$t [khr]$', fontsize=18)
-    ax.set_ylabel(r'$n_i[m^{-3}]$', fontsize=18)
+    ax.plot(tsteps, ni_arr, color=use_color)
+    ax.set_title(r'Ion density ($n_i$)')
+    ax.set_xlabel(xlabel, fontsize=fs)
+    ax.set_ylabel(r'$m^{-3}$', fontsize=fs)
     ax.grid(which='both')
-    ax.legend()
 
     fig, ax = plt.subplots(1, 1, figsize=(6,6))
-    ax.plot(tsteps[:until], -Vebs_t[:until], 'r')
-    ax.set_xlabel(r'$t [khr]$', fontsize=18)
-    ax.set_ylabel(r'$V_{ebs}$', fontsize=18)
+    ax.plot(tsteps, -Vebs_t, 'r')
+    ax.set_xlabel(r'Time $[khr]$', fontsize=fs)
+    ax.set_ylabel(r'$V_{ebs}$', fontsize=fs)
     ax.grid(which='both')
-    ax.legend()
+
     plt.show()
 
     return tsteps, ra_t, ta_t, ts_t

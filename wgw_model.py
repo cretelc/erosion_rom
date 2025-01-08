@@ -93,7 +93,7 @@ def electron_backstreaming(beam_potential,
     Vbp - beam plasma potential, V
     Vdp - discharge plasma potential
     Va  - accel grid potential 
-    Jb  - beam current density
+    Jb  - beamlet ion current 
     Te  - beam electron temperature, eV 
     ra  - accel radius, m 
     le  - effective grid separation 
@@ -104,7 +104,7 @@ def electron_backstreaming(beam_potential,
     Vbp = beam_potential
     Vdp = discharge_potential
     Va  = accel_voltage
-    Jb = beam_current_density
+    Ib = beam_current_density
     Te = beam_Te
     da = 2*ra 
     ds = 2*rs
@@ -120,7 +120,7 @@ def electron_backstreaming(beam_potential,
     Vsp = saddlepoint_Voltage(Va, da, Vdp, le, ta)
 
     # Calculate the space charge perturbation (Equation 8)
-    dV     = spacecharge_effect(Jb, Vdp, Vsp, Ma, db, da)
+    dV     = spacecharge_effect(Ib, Vdp, Vsp, Ma, db, da)
     
     Va_ebs = retarding_Va(Vsp_star, dV, Vdp, B)
     return Va_ebs
