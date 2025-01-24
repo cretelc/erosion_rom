@@ -105,9 +105,9 @@ def accel_thickness_erosion_model(dt,  hyperparams, thruster, grids, discharge_c
     
     Vplume           = plume_volume(Rth, n_ds=n_ds, div = diverg)                       # plume volume, m3  
     s_avg            = sputterant_redep_rate(IB, Rch, Rth, Ns, Ni, Ms, Mi, rho_C, Vd)   # redeposition rate of facility sputterants -> atoms/s
-    r_CEX            = eta_cex*cex_generation_rate(javg, n0_fac, sigma_p, Vplume)       # rate of cex ions being generated -> ions/s
-    G_CEX            = eta_cex*cex_generation_rate(javg, n0_fac, sigma_p, Vplume)
-    theta_C          = carbon_surface_coverage(s_avg, r_CEX) 
+    r_CEX            = eta_cex*cex_generation_rate(IB, n0_fac, sigma_p, Vplume)         # rate of cex ions being generated -> ions/s
+    G_CEX            = eta_cex*cex_generation_rate(javg, n0_fac, sigma_p, Vplume)       # flux of cex ions being generated -> ions/m2 s
+    theta_C          = carbon_surface_coverage(s_avg, r_CEX)                            # surface coverage of carbon
     Y_p              = ey.calculate_yield_Xe_Mo(abs(Va))                                # -> atoms/ion; produces reasonable results
     Y_pp             = ey.calculate_yield_Xe_Mo(2*abs(Va))                              # -> atoms/ion; produces reasonable results
     sputter_flux     = cex_erosion_flux(G_CEX, y, Y_p, Y_pp, 
@@ -367,9 +367,9 @@ def simple_erosion_model():
     # hyperparameters ---------------------------------------
     j_bar    = 0.25     # normalized beamlet current
     I_bar    = 1.8      # beamlet-bohm current ratio
-    eta_cex  = 0.001    # cex ion impingement probability
+    eta_cex  = 0.004    # cex ion impingement probability
     n_ds     = 10       # thruster radius's downstream 
-    Rebs     = 0.001   # electron backstreaming ratio limit
+    Rebs     = 0.001    # electron backstreaming ratio limit
     # thruster ----------------------------------------------
     lg       = 0.36     # grid separation, mm
     rs       = (1.91)/2 # screen grid radius, mm
@@ -420,7 +420,7 @@ def simple_erosion_model():
     ra_t[0] = ra0
     ta_t[0] = ta0
     ts_t[0] = ts0
-    rb0 = 0.9*ra0
+    rb0     = 0.9*ra0
     Vebs_t[0] = ebs.electron_backstreaming(phi_p, phi_dis, Va, Ib, Te_beam, 
                                                  rs*(1e-3), ra0*(1e-3), 
                                                  ts0*(1e-3), ta0*(1e-3), lg*(1e-3), 
@@ -469,7 +469,7 @@ def simple_erosion_model():
     print(f"Runtime: {perf_counter() - start_time: 0.5f} s")
     fig, axs = plt.subplots(2, 1, sharex=True, figsize=(12,8))
     ax = axs[0]
-    ax.plot(tsteps, ra_t, 'k-', label=r'r_a')
+    ax.plot(tsteps, ra_t, 'k-', label=r'$r_a$')
     #ax.plot(xdata, ydata, 'k*', label = 'ELT Data')
     ax.set_ylabel(r'$[mm]$', fontsize=18)
     ax.grid(which='both')
