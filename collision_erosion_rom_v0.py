@@ -6,14 +6,14 @@ from scipy.constants import elementary_charge as q
 from scipy.constants import Boltzmann as kB
 from scipy.constants import epsilon_0 as eps0
 from scipy.optimize import curve_fit
-import eckstein_yield as eck
+import erosion_rom.eckstein_yield as eck
 from uncertainties import ufloat
 from uncertainties.umath import log as ulog
 from uncertainties.umath import log10 as ulog10
-import eckstein_yield as ey
+import erosion_rom.eckstein_yield as ey
 from random import uniform as uni
 from clausing import simpleClausingFactor
-import wgw_model as ebs
+import erosion_rom.wgw_model as ebs
 import pandas as pd
 from time import perf_counter
 
@@ -540,8 +540,8 @@ def vol_test():
         
 def main():
     #find_erosion_fit(np.linspace(0,35))
-    t, ra, ta, ts_t = simple_erosion_model()
-    #np.savetxt('grid_geometry.csv', np.array([t, ra, ta]).T, delimiter=',')
+    t, ra, ta, ts = simple_erosion_model()
+    #np.savetxt('grid_geometry.csv', np.array([t, ra, ta, ts]).T, delimiter=',')
 
 
     #s_avg = sputterant_redep_rate(1.76, 2, 0.3, 6, 54, 12.01, 131.1, 2.25*(100**3), 1100)
