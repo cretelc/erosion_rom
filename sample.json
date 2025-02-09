@@ -1,0 +1,182 @@
+{
+ "eta_p": {
+  "value": 0.004,
+  "description": "cex ion impingement probability in the plume",
+  "unit": ""
+ },
+ "eta_b1": {
+  "value": 0.75,
+  "description": "upstream cex ion impingement probability between the grids",
+  "unit": ""
+ },
+ "eta_b2": {
+  "value": 0.25,
+  "description": "downstream cex ion impingement probability between grids",
+  "unit": ""
+ },
+ "n_ds": {
+  "value": 10,
+  "description": "number of thruster radii downstream",
+  "unit": ""
+ },
+ "Rebs": {
+  "value": 0.001,
+  "description": "electron backstreaming ratio limit",
+  "unit": ""
+ },
+ "w": {
+  "value": 0.5,
+  "description": "weight of upstream accel vertice used in ra_avg calc, [0,1]",
+  "unit": ""
+ },
+ "lg": {
+  "value": 0.36,
+  "description": "grid separation",
+  "unit": "mm"
+ },
+ "rs": {
+  "value": 0.955,
+  "description": "screen grid radius",
+  "unit": "mm"
+ },
+ "ra": {
+  "value": 0.57,
+  "description": "accel grid radius",
+  "unit": "mm"
+ },
+ "s": {
+  "value": 2.24,
+  "description": "aperture center spacing",
+  "unit": "mm"
+ },
+ "ta": {
+  "value": 0.38,
+  "description": "accel grid thickness",
+  "unit": "mm"
+ },
+ "ts": {
+  "value": 0.38,
+  "description": "screen grid thickness",
+  "unit": "mm"
+ },
+ "Rth": {
+  "value": 0.15,
+  "description": "thruster major radius",
+  "unit": "m"
+ },
+ "M_grid": {
+  "value": 95.95,
+  "description": "grid material atomic mass",
+  "unit": "g/mol"
+ },
+ "rho_grid": {
+  "value": 0.01022,
+  "description": "grid material density",
+  "unit": "g/mm3"
+ },
+ "diverg": {
+  "value": 20,
+  "description": "plume divergence half angle",
+  "unit": "deg"
+ },
+ "phi_p": {
+  "value": 0,
+  "description": "plasma potential in the beam",
+  "unit": "V"
+ },
+ "ni_dis": {
+  "value": 1e+17,
+  "description": "discharge ion density",
+  "unit": "m-3"
+ },
+ "Te_dis": {
+  "value": 15,
+  "description": "discharge electron temperature",
+  "unit": "eV"
+ },
+ "n0_fac": {
+  "value": 2e+18,
+  "description": "facility neutral density",
+  "unit": "m-3"
+ },
+ "Rch": {
+  "value": 2,
+  "description": "cylindrical vacuum chamber radius",
+  "unit": "m"
+ },
+ "Lch": {
+  "value": 3,
+  "description": "cylindrical vacuum chamber length",
+  "unit": "m"
+ },
+ "Ns": {
+  "value": 6,
+  "description": "vacuum chamber wall material atomic number",
+  "unit": ""
+ },
+ "Ms": {
+  "value": 12.011,
+  "description": "vacuum chamber wall material atomic mass",
+  "unit": "g/mol"
+ },
+ "rho_C": {
+  "value": 2250000.0,
+  "description": "redposited material density",
+  "unit": "g/m3"
+ },
+ "Te_beam": {
+  "value": 2,
+  "description": "beam electron temperature",
+  "unit": "eV"
+ },
+ "nbp": {
+  "value": 5e+16,
+  "description": "downstream plasma density near accel grid",
+  "unit": "m-3"
+ },
+ "IB": {
+  "value": 1.76,
+  "description": "total beam current",
+  "unit": "A"
+ },
+ "Ib": {
+  "value": 0.00027,
+  "description": "beamlet current",
+  "unit": "A"
+ },
+ "Vd": {
+  "value": 1100,
+  "description": "total (discharge) potential",
+  "unit": "V"
+ },
+ "Va": {
+  "value": -180,
+  "description": "applied accel grid potential",
+  "unit": "V"
+ },
+ "phi_dis": {
+  "value": 32,
+  "description": "discharge plasma potential over screen grid",
+  "unit": "V"
+ },
+ "Ni": {
+  "value": 54,
+  "description": "propellant atomic number",
+  "unit": ""
+ },
+ "Mi": {
+  "value": 134.27,
+  "description": "propellant atomic mass",
+  "unit": "g/mol"
+ },
+ "Ec": {
+  "value": 400,
+  "description": "charge-exchange collision energy",
+  "unit": "eV"
+ },
+ "E_cex": {
+  "value": 400,
+  "description": "erosion impingement energy",
+  "unit": "eV"
+ }
+}

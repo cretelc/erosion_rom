@@ -13,14 +13,14 @@ def vth(Te, M = me):
     return (8*q*Te / (pi*M))**(1/2)
 
 # Breaking down F(x) = C(g(x)/h(x)) - B 
-def g(x):
-    return uexp(x) - 1
+def g(x,j=0.35):
+    return uexp(x*j) - 1
 
 def h(x):
     return x
 
-def dg(x):
-    return uexp(x)
+def dg(x,j=0.35):
+    return j*uexp(x)
 def dh(x):
     return 1
 
@@ -30,25 +30,23 @@ def Fplot(x):
 def F(x, *args):
     ''' 
     C = args[0]
-    B = args[1] 
+    B = args[1]
+    j = args[2] 
     '''
-    return args[0] * (g(x)/h(x)) - args[1]
-    #return  (g(x)/h(x)) - (args[1]/args[0])
+    return args[0] * (g(x,args[2])/h(x)) - args[1]
 
-
-def DF(x, *args):# C=1e-5):
+def DF(x, *args):
     C = args[0] 
-    return C * ( dg(x)*h(x) - g(x)*dh(x) ) / (h(x)**2)
-    #return ( dg(x)*h(x) - g(x)*dh(x) ) / (h(x)**2)
+    j = args[1]
+    return C * ( dg(x,j)*h(x) - g(x,j)*dh(x) ) / (h(x)**2)
 
 def newton(x0, f, Df, error, maxiter, *args):
     ''' calculates the solution to f via Newtone Method'''
     xn = x0
-    C, B = args
+    C, B, j = args
     for i in range(0, maxiter):
-        fxn  = f(xn, C, B)
-        Dfxn = Df(xn, C)
-        #print(xn)
+        fxn  = f(xn, C, B,j)
+        Dfxn = Df(xn, C, j)
         if abs(fxn) < error:
             #print(f"Solution, {xn}, found after {i} iterations.")
             return xn
@@ -60,7 +58,7 @@ def newton(x0, f, Df, error, maxiter, *args):
     return None
 
 
-def find_Vebs(Va: float, ra: float, Te: float, Vsp: float, Vbp: float, nbp: float, Ilimit:float , override_init=True):
+def find_Vebs(Va: float, ra: float, Te: float, Vsp: float, Vbp: float, nbp: float, Ilimit:float, jbar:float=1,  override_init=True):
     #for_kwargs = {'ra': ra, 'Te':Te, 'phi_sp': Vsp, 'phi_bp': Vbp, 'nbp': nbp, 'Iebs_limit': Ilimit}
 
     cbar    = vth(Te)    # might be one more 0  
@@ -68,13 +66,11 @@ def find_Vebs(Va: float, ra: float, Te: float, Vsp: float, Vbp: float, nbp: floa
     k2      = nbp*cbar/ 4
     k3      = uexp((Vsp - Vbp)/Te)
     C = k1*k2*k3
-    #print(f"{C}, {C/Te}")
-    #print(f"B={Ilimit}")
     if override_init == True:
         Phi0 = -1
     else:
         Phi0 = (Va - Vsp) / Te
-    Phi = newton(-1, F, DF, 1e-11, 100, C, Ilimit)
+    Phi = newton(-1, F, DF, 1e-11, 1000, C, Ilimit, jbar)
     Vebs = Phi * Te + Vsp
     return Vebs
 

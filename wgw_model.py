@@ -29,7 +29,7 @@ def saddlepoint_Voltage(Va, da, Vdp, le, ta, dV=0):
     return Vsp
 
 def spacecharge_effect(Jb, Vdp, Vsp, ion_mass, db, da):
-    ''' Equations 8, Williams 2003'''
+    ''' Equation 8 and A7, Williams 2003'''
 
     M = AMU2kg(ion_mass)
     A = Jb / (2 * pi * eps0)
@@ -56,7 +56,7 @@ def retarding_Va(Vsp, dV, Vdp, B):
     return Va
 
 def retarding_Vsp(Vbp, Te, ebs_ratio, ion_mass, Vdp):
-    ''' Equation 5, Williams 2003'''
+    ''' Equation 5, Williams 2003 '''
     M = AMU2kg(ion_mass)
     A = 2*ebs_ratio
     B = pi*(me/M)
@@ -320,7 +320,15 @@ def wirz_test():
     #axs.set_ylim([100,500])
     plt.show() 
 
+def space_charge_test():
+    da = 1
+    rb = linspace(0.1, 0.99, 1000)
+    dV = spacecharge_effect(1, 2, 1, 1, rb*da, da)
+    plt.plot(rb, dV)
+    plt.show()
+
 if __name__ == '__main__':
-    wirz_test()
+    space_charge_test()
+    #wirz_test()
     
 
