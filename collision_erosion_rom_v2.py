@@ -828,7 +828,7 @@ def kwargs_simple_erosion_model(simulation_duration, step_size, print_iters=Fals
         w1, w2 = potential_ratio(ra1_t[i], ra2_t[i])
         ra_avg  = np.average([ra1_t[i], ra2_t[i]], weights=[w1, w2])
         Vsp     = wgw.retarding_Vsp(phi_p, Te_beam, Rebs, Mi, Vd)
-        dv      = wgw.spacecharge_effect(Ib, Vd, Vsp, Mi, 2*rb*(1e-3), 2*ra_avg*(1e-3))
+        dv      = wgw.spacecharge_effect(Ib, Vd, Vsp, Mi, 2*rb_t[i]*(1e-3), 2*ra_avg*(1e-3))
         #VebsWirz_t[i] =  find_Vebs(Va, ra_avg*(1e-3), Te_beam, Vsp, phi_p, nbp, j_bar, Ib*Rebs )
         VebsWirz_t[i] = -dv + find_Vebs(Va, ra_avg*(1e-3), Te_beam, Vsp, phi_p, nbp, Ib*Rebs)
         
@@ -913,7 +913,7 @@ def plot_results(t, ra1, ra2, rb, ta, ts, y, n0, ni, Te, Vebs ):
         ax.grid(which='both')
         #plt.show()
 
-def nstar_elt_sim():
+def nstar_elt():
     # Throttle conditions are a consolidation of Wirz 2011; Fig. 1 & Table 1 and Sengupta 2003; Table 1
     throttle_conditions = {"TH15" : {"IB": 1.76, "Ib": 0.27e-3, "Vb": 1100, "Va":-180, "n0_local": 3.50e17},
                            "TH12" : {"IB": 1.49, "Ib": 0.25e-3, "Vb": 1100, "Va":-180, "n0_local": 3.15e17},
@@ -963,8 +963,6 @@ def nstar_elt_sim():
                                                                                         eta_p = 0.004, eta_b1=0.75, n_ds=10, w=0.5)#,
                                                                                         #Rch=Rch, Lch=Lch) 
             tsteps = np.append(tsteps, tsteps[-1]+t)
-
-        
         ra_ds_elt = np.append(ra_ds_elt, ra_ds)
         ra_us_elt = np.append(ra_us_elt, ra_us)
         rb_elt    = np.append(rb_elt, rb)
@@ -973,6 +971,51 @@ def nstar_elt_sim():
         Vebs_elt  = np.append(Vebs_elt, Vebs)
     return tsteps, ra_ds_elt, ra_us_elt, rb_elt, ta_elt, ts_elt, Vebs_elt, None, None, None, None
 
+def sim_and_show_nstar_elt():
+    elt_wirz_vebs = [[140, 141], [150, 166], [150, 155], [187, 200],[0,0], [200, 240], [190, 195]] 
+    t, ra_ds, ra_us, rb, ta, ts, Vebs, _, _, _, _ = nstar_elt()
+    print(f"Post test min(ra): {min(ra_ds[-1], ra_us[-1]):0.3f} mm")
+    print(f"Post test Vebs: {Vebs[-1]:0.3f} V")
+    
+    fig = plt.figure(figsize=(12, 6))
+    fig.suptitle("Extended Life Test -- ROM Results")
+    fig.tight_layout()
+    ax_r = plt.subplot(2,2,1)
+    ax_t = plt.subplot(2,2,3)
+    ax_V = plt.subplot(1,2,2)
+    axes = [ax_r, ax_t, ax_V]
+
+    end_times = [0.5, 4.7, 10.5, 15.6, 21.3, 25.7, 30.4] # kHr
+    start_times = [0] + end_times[:-1]
+    time, ra_elt = grab_data_general("erosion_rom/wirz-time_dependent_fig11.csv", ["T", 'ra'])
+    for i in range(len(start_times)):
+        axes[2].plot([start_times[i], end_times[i]], elt_wirz_vebs[i], 'r-')
+
+    axes[2].plot(t, abs(Vebs), 'k-')
+    
+    axes[2].set_ylim([110, 250])
+    axes[2].set_xlabel("Time [khr]")
+    axes[2].set_ylabel(r"$|V_{ebs}$|", color='blue')
+    axes[0].set_ylabel(r'$d_b [mm]$')#, color='red')
+    
+    axes[2].grid(which='both')
+
+    axes[0].plot(t, 2*ra_ds, 'k-', label=r'$r_{a,ds}$')
+    axes[0].plot(t, 2*ra_us, 'k-.', label=r'$r_{a,us}$')
+    axes[0].plot(time, ra_elt, 'b-*', label=r'ELT $min(r_a)$')
+    #axes[0].plot(t, 2*rb, 'r-', label=r'$r_b$')
+    axes[0].legend()
+    axes[0].grid(which='both')
+    #axes[0].set_xlabel(r"Time $[khr]$")
+    axes[0].set_ylabel(r"Diameter $[mm]$")
+
+    axes[1].plot(t, ta, 'k-', label=r'$t_{a}$')
+    axes[1].plot(t, ts, 'k-.', label=r'$t_{s}$')
+    axes[1].legend()
+    axes[1].grid(which='both')
+    axes[1].set_xlabel(r"Time $[khr]$")
+    axes[1].set_ylabel(r"Thickness $[mm]$")
+    plt.show()
 
 def main():
     #t, ra_ds, ra_us, ta, ts = json_simple_erosion_model('sample.json', 8.2, 0.1)
@@ -985,7 +1028,7 @@ def main():
     ax.legend()
     ax.set_xlabel("Time [khr]")
     ax.set_ylabel(r"$|V_{ebs}$|")
-    ax.set_ylim([100, 220])
+    ax.set_ylim([110, 250])
     ax.grid(which='both')
     print(f"Post test min(ra): {min(ra_ds[-1], ra_us[-1]):0.3f} mm")
     print(f"Post test Vebs: {Vebs[-1]:0.3f} V")
@@ -1013,46 +1056,6 @@ def main():
 
     return
 
-
-
-
-
 if __name__ == "__main__":
-    #main()
-    t, ra_ds, ra_us, rb, ta, ts, Vebs, _, _, _, _ = nstar_elt_sim()
-    print(f"Post test min(ra): {min(ra_ds[-1], ra_us[-1]):0.3f} mm")
-    print(f"Post test Vebs: {Vebs[-1]:0.3f} V")
-    
-    fig = plt.figure(figsize=(12, 6))
-    fig.suptitle("Extended Life Test -- ROM Results")
-    fig.tight_layout()
-    ax_r = plt.subplot(2,2,1)
-    ax_t = plt.subplot(2,2,3)
-    ax_V = plt.subplot(1,2,2)
-    axes = [ax_r, ax_t, ax_V]
-
-    axes[2].plot(t, abs(Vebs), 'k-')
-    axes[0].plot(t, 2*rb, 'r-', label=r'$r_b$')
-    
-    axes[2].set_xlabel("Time [khr]")
-    axes[2].set_ylabel(r"$|V_{ebs}$|", color='blue')
-    axes[0].set_ylabel(r'$d_b [mm]$')#, color='red')
-    
-    axes[2].grid(which='both')
-
-    axes[0].plot(t, 2*ra_ds, 'k-', label=r'$r_{a,ds}$')
-    axes[0].plot(t, 2*ra_us, 'k-.', label=r'$r_{a,us}$')
-    axes[0].legend()
-    axes[0].grid(which='both')
-    axes[0].set_xlabel(r"Time $[khr]$")
-    axes[0].set_ylabel(r"Diameter $[mm]$")
-
-    axes[1].plot(t, ta, 'k-', label=r'$t_{a}$')
-    axes[1].plot(t, ts, 'k-.', label=r'$t_{s}$')
-    axes[1].legend()
-    axes[1].grid(which='both')
-    axes[1].set_xlabel(r"Time $[khr]$")
-    axes[1].set_ylabel(r"Thickness $[mm]$")
-    plt.show()
-    
-    #iter_thickness_model()
+    sim_and_show_nstar_elt()
+  
